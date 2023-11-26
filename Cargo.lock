@@ -107,6 +107,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "armillary"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "color-eyre",
+ "color-rs",
+ "colorgrad",
+ "glam",
+ "input-event-codes",
+ "lazy_static",
+ "manifest-dir-macros",
+ "map-range",
+ "mint",
+ "rustc-hash",
+ "stardust-xr-fusion",
+ "stardust-xr-molecules",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -737,28 +759,6 @@ dependencies = [
  "libc",
  "wasi",
  "windows-sys",
-]
-
-[[package]]
-name = "model-viewer"
-version = "0.1.0"
-dependencies = [
- "clap",
- "color-eyre",
- "color-rs",
- "colorgrad",
- "glam",
- "input-event-codes",
- "lazy_static",
- "manifest-dir-macros",
- "map-range",
- "mint",
- "rustc-hash",
- "stardust-xr-fusion",
- "stardust-xr-molecules",
- "tokio",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
