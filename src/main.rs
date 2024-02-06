@@ -6,9 +6,10 @@ use glam::{vec3, Vec3};
 use manifest_dir_macros::directory_relative_path;
 use stardust_xr_fusion::{
     client::{Client, ClientState, FrameInfo, RootHandler},
-    core::values::Transform,
-    drawable::{Model, ResourceID},
+    core::values::ResourceID,
+    drawable::Model,
     node::NodeError,
+    spatial::{SpatialAspect, Transform},
 };
 use std::{path::PathBuf, sync::Arc};
 use tracing_subscriber::EnvFilter;
@@ -27,14 +28,14 @@ impl Root {
     async fn new(client: Arc<Client>, args: Args, radius: f32) -> Result<Self> {
         let model = Model::create(
             client.get_root(),
-            Transform::from_position([0.0; 3]),
+            Transform::from_translation([0.0; 3]),
             &ResourceID::new_direct(
                 args.file_path
                     .canonicalize()
                     .map_err(|_| NodeError::InvalidPath)?,
             )?,
         )?;
-        let model_bounds = model.get_bounding_box(Some(&client.get_root()))?.await?;
+        let model_bounds = model.get_relative_bounding_box(client.get_root()).await?;
         dbg!(&model_bounds);
         let max_model_dim = model_bounds
             .size
@@ -56,7 +57,7 @@ impl Root {
         model.set_spatial_parent(turntable.content_parent())?;
         let mut position = vec3(0.0, model_bounds.size.y * scale / 2.0, 0.0);
         position -= Vec3::from(model_bounds.center) * scale * 0.5;
-        model.set_transform(None, Transform::from_position_scale(position, [scale; 3]))?;
+        model.set_local_transform(Transform::from_translation_scale(position, [scale; 3]))?;
         Ok(Root {
             turntable,
             _model: model,

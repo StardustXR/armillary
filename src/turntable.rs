@@ -2,12 +2,11 @@ use color::rgba_linear;
 use glam::{Quat, Vec3};
 use map_range::MapRange;
 use stardust_xr_fusion::{
-    core::values::Transform,
-    drawable::{Line, LinePoint, Lines},
+    drawable::{Line, LinePoint, Lines, LinesAspect},
     fields::CylinderField,
     input::{InputData, InputDataType, InputHandler},
     node::NodeError,
-    spatial::Spatial,
+    spatial::{Spatial, SpatialAspect, Transform},
     HandlerWrapper,
 };
 use stardust_xr_molecules::input_action::{BaseInputAction, InputActionHandler, SingleActorAction};
@@ -118,7 +117,7 @@ pub struct Turntable {
 }
 impl Turntable {
     pub fn create(
-        parent: &Spatial,
+        parent: &impl SpatialAspect,
         transform: Transform,
         settings: TurntableSettings,
     ) -> Result<Self, NodeError> {
@@ -126,15 +125,17 @@ impl Turntable {
         let content_parent = Spatial::create(&root, Transform::none(), false)?;
         let field = CylinderField::create(
             &root,
-            Transform::from_position_rotation(
+            Transform::from_translation_rotation(
                 [0.0, -settings.height * 0.5, 0.0],
                 Quat::from_rotation_x(FRAC_PI_2),
             ),
             settings.height,
             settings.inner_radius + settings.height,
         )?;
-        let input_handler = InputHandler::create(&root, Transform::none(), &field)?
-            .wrap(InputActionHandler::new(settings))?;
+        let input_handler = InputActionHandler::wrap(
+            InputHandler::create(&root, Transform::none(), &field)?,
+            settings,
+        )?;
         let pointer_hover_action = BaseInputAction::new(false, |input, _| match &input.input {
             InputDataType::Pointer(_) => input.distance < 0.0,
             _ => false,
@@ -198,7 +199,9 @@ impl Turntable {
         self.rotation += angle;
         let _ = self
             .content_parent
-            .set_rotation(None, Quat::from_rotation_y(self.rotation));
+            .set_local_transform(Transform::from_rotation(Quat::from_rotation_y(
+                self.rotation,
+            )));
     }
 
     pub fn update(&mut self) {
@@ -239,6 +242,6 @@ impl Turntable {
                 point.color = rgba_linear!(lerp, lerp, lerp, 1.0);
             }
         }
-        self.grip.update_lines(&self.grip_lines).unwrap();
+        self.grip.set_lines(&self.grip_lines).unwrap();
     }
 }
