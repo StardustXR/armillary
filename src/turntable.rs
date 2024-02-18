@@ -2,6 +2,7 @@ use color::rgba_linear;
 use glam::{Quat, Vec3};
 use map_range::MapRange;
 use stardust_xr_fusion::{
+    client::FrameInfo,
     drawable::{Line, LinePoint, Lines, LinesAspect},
     fields::CylinderField,
     input::{InputData, InputDataType, InputHandler},
@@ -108,10 +109,12 @@ pub struct Turntable {
     grip_lines: Vec<Line>,
     grip: Lines,
     _field: CylinderField,
+
     input_handler: HandlerWrapper<InputHandler, InputActionHandler<TurntableSettings>>,
     pointer_hover_action: BaseInputAction<TurntableSettings>,
     always_action: BaseInputAction<TurntableSettings>,
     touch_action: SingleActorAction<TurntableSettings>,
+    angular_momentum: f32,
     prev_angle: Option<f32>,
     rotation: f32,
 }
@@ -170,6 +173,7 @@ impl Turntable {
             touch_action,
             prev_angle: None,
             rotation: 0.0,
+            angular_momentum: 0.0,
         })
     }
 
@@ -204,7 +208,9 @@ impl Turntable {
             )));
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, info: FrameInfo) {
+        self.angular_momentum *= 0.98;
+
         self.input_handler.lock_wrapped().update_actions([
             &mut self.pointer_hover_action,
             &mut self.always_action,
@@ -222,12 +228,17 @@ impl Turntable {
             .and_then(interact_angle)
         {
             if let Some(prev_angle) = self.prev_angle {
-                self.rotate(prev_angle - angle);
+                let delta = prev_angle - angle;
+                self.angular_momentum = delta * info.delta as f32;
+                self.rotate(delta);
             }
             self.prev_angle.replace(angle);
         }
         if self.touch_action.actor_stopped() {
             self.prev_angle.take();
+        }
+        if !self.touch_action.actor_acting() {
+            self.rotate(self.angular_momentum / info.delta as f32);
         }
 
         // update grip color

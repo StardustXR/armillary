@@ -58,6 +58,7 @@ impl Root {
         let mut position = vec3(0.0, model_bounds.size.y * scale / 2.0, 0.0);
         position -= Vec3::from(model_bounds.center) * scale * 0.5;
         model.set_local_transform(Transform::from_translation_scale(position, [scale; 3]))?;
+        turntable.root().set_zoneable(true)?;
         Ok(Root {
             turntable,
             _model: model,
@@ -65,8 +66,8 @@ impl Root {
     }
 }
 impl RootHandler for Root {
-    fn frame(&mut self, _info: FrameInfo) {
-        self.turntable.update();
+    fn frame(&mut self, info: FrameInfo) {
+        self.turntable.update(info);
     }
     fn save_state(&mut self) -> ClientState {
         ClientState::default()
