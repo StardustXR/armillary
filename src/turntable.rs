@@ -11,10 +11,7 @@ use stardust_xr_fusion::{
     HandlerWrapper,
 };
 use stardust_xr_molecules::input_action::{BaseInputAction, InputActionHandler, SingleActorAction};
-use std::f32::{
-    consts::{FRAC_PI_2, TAU},
-    INFINITY,
-};
+use std::f32::{consts::{FRAC_PI_2, TAU}, INFINITY};
 
 #[derive(Debug, Clone, Copy)]
 pub struct TurntableSettings {
