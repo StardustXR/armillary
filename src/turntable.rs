@@ -1,17 +1,19 @@
-use color::rgba_linear;
 use glam::{Quat, Vec3};
 use map_range::MapRange;
 use stardust_xr_fusion::{
-    client::FrameInfo,
     drawable::{Line, LinePoint, Lines, LinesAspect},
-    fields::CylinderField,
+    fields::{CylinderShape, Field, Shape},
     input::{InputData, InputDataType, InputHandler},
     node::NodeError,
-    spatial::{Spatial, SpatialAspect, Transform},
-    HandlerWrapper,
+    root::FrameInfo,
+    spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
+    values::color::rgba_linear,
 };
-use stardust_xr_molecules::input_action::{BaseInputAction, InputActionHandler, SingleActorAction};
-use std::f32::{consts::{FRAC_PI_2, TAU}, INFINITY};
+use stardust_xr_molecules::input_action::{InputQueue, InputQueueable, SimpleAction, SingleAction};
+use std::f32::{
+    consts::{FRAC_PI_2, TAU},
+    INFINITY,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct TurntableSettings {
@@ -73,10 +75,10 @@ fn interact_points(input: &InputData) -> Vec<Vec3> {
         _ => vec![],
     }
 }
-fn interact_proximity(input_action: &BaseInputAction<TurntableSettings>, point: Vec3) -> f32 {
-    input_action
-        .currently_acting
-        .iter()
+fn interact_proximity(input: &InputQueue, point: Vec3) -> f32 {
+    input
+        .input()
+        .keys()
         .flat_map(|i| match &i.input {
             InputDataType::Hand(h) => {
                 vec![
@@ -105,55 +107,36 @@ pub struct Turntable {
     settings: TurntableSettings,
     grip_lines: Vec<Line>,
     grip: Lines,
-    _field: CylinderField,
+    _field: Field,
 
-    input_handler: HandlerWrapper<InputHandler, InputActionHandler<TurntableSettings>>,
-    pointer_hover_action: BaseInputAction<TurntableSettings>,
-    always_action: BaseInputAction<TurntableSettings>,
-    touch_action: SingleActorAction<TurntableSettings>,
+    input: InputQueue,
+    pointer_hover_action: SimpleAction,
+    touch_action: SingleAction,
     angular_momentum: f32,
     prev_angle: Option<f32>,
     rotation: f32,
 }
 impl Turntable {
     pub fn create(
-        parent: &impl SpatialAspect,
+        parent: &impl SpatialRefAspect,
         transform: Transform,
         settings: TurntableSettings,
     ) -> Result<Self, NodeError> {
         let root = Spatial::create(parent, transform, false)?;
         let content_parent = Spatial::create(&root, Transform::none(), false)?;
-        let field = CylinderField::create(
+        let field = Field::create(
             &root,
             Transform::from_translation_rotation(
                 [0.0, -settings.height * 0.5, 0.0],
                 Quat::from_rotation_x(FRAC_PI_2),
             ),
-            settings.height,
-            settings.inner_radius + settings.height,
+            Shape::Cylinder(CylinderShape {
+                length: settings.height,
+                radius: settings.inner_radius + settings.height,
+            }),
         )?;
-        let input_handler = InputActionHandler::wrap(
-            InputHandler::create(&root, Transform::none(), &field)?,
-            settings,
-        )?;
-        let pointer_hover_action = BaseInputAction::new(false, |input, _| match &input.input {
-            InputDataType::Pointer(_) => input.distance < 0.0,
-            _ => false,
-        });
-        let always_action = BaseInputAction::new(false, |_, _| true);
-        let touch_action = SingleActorAction::new(
-            true,
-            |input, settings: &TurntableSettings| {
-                let slope_condition = interact_points(input).into_iter().any(|p| {
-                    let h = p.y + settings.height;
-                    let r = p.x.hypot(p.z) - settings.inner_radius;
-                    h < r
-                });
-                let distance_condition = input.distance < 0.0;
-                slope_condition && distance_condition
-            },
-            false,
-        );
+        let input = InputHandler::create(&root, Transform::none(), &field)?.queue()?;
+
         let grip_lines: Vec<Line> = settings.grip_lines();
         let grip = Lines::create(&content_parent, Transform::none(), &grip_lines)?;
 
@@ -164,10 +147,9 @@ impl Turntable {
             grip_lines,
             grip,
             _field: field,
-            input_handler,
-            pointer_hover_action,
-            always_action,
-            touch_action,
+            input,
+            pointer_hover_action: Default::default(),
+            touch_action: Default::default(),
             prev_angle: None,
             rotation: 0.0,
             angular_momentum: 0.0,
@@ -184,7 +166,7 @@ impl Turntable {
     #[inline]
     fn scroll(&self) -> f32 {
         self.pointer_hover_action
-            .currently_acting
+            .currently_acting()
             .iter()
             .map(|i| {
                 i.datamap.with_data(|d| {
@@ -208,12 +190,26 @@ impl Turntable {
     pub fn update(&mut self, info: FrameInfo) {
         self.angular_momentum *= 0.98;
 
-        self.input_handler.lock_wrapped().update_actions([
-            &mut self.pointer_hover_action,
-            &mut self.always_action,
-            self.touch_action.base_mut(),
-        ]);
-        self.touch_action.update(None);
+        self.pointer_hover_action
+            .update(&self.input, &|input| match &input.input {
+                InputDataType::Pointer(_) => input.distance < 0.0,
+                _ => false,
+            });
+        self.touch_action.update(
+            false,
+            &self.input,
+            |_| true,
+            |input| {
+                let slope_condition = interact_points(input).into_iter().any(|p| {
+                    let h = p.y + self.settings.height;
+                    let r = p.x.hypot(p.z) - self.settings.inner_radius;
+                    h < r
+                });
+                let distance_condition = input.distance < 0.0;
+                slope_condition && distance_condition
+            },
+        );
+
         self.rotate(-self.scroll() * self.settings.scroll_multiplier);
 
         // if touching
@@ -226,7 +222,7 @@ impl Turntable {
         {
             if let Some(prev_angle) = self.prev_angle {
                 let delta = prev_angle - angle;
-                self.angular_momentum = delta * info.delta as f32;
+                self.angular_momentum = delta * info.delta;
                 self.rotate(delta);
             }
             self.prev_angle.replace(angle);
@@ -235,14 +231,14 @@ impl Turntable {
             self.prev_angle.take();
         }
         if !self.touch_action.actor_acting() {
-            self.rotate(self.angular_momentum / info.delta as f32);
+            self.rotate(self.angular_momentum / info.delta);
         }
 
         // update grip color
         for line in &mut self.grip_lines {
             for point in &mut line.points {
                 let lerp = interact_proximity(
-                    &self.always_action,
+                    &self.input,
                     Quat::from_rotation_y(self.rotation) * Vec3::from(point.point),
                 )
                 .map_range(0.05..0.0, 1.0..0.0)

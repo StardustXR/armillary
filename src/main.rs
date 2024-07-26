@@ -5,11 +5,12 @@ use color_eyre::eyre::{bail, Result};
 use glam::{vec3, Vec3};
 use manifest_dir_macros::directory_relative_path;
 use stardust_xr_fusion::{
-    client::{Client, ClientState, FrameInfo, RootHandler},
+    client::Client,
     core::values::ResourceID,
     drawable::Model,
-    node::NodeError,
-    spatial::{SpatialAspect, Transform},
+    node::{MethodResult, NodeError, NodeType},
+    root::{ClientState, FrameInfo, RootAspect, RootHandler},
+    spatial::{SpatialAspect, SpatialRefAspect, Transform},
 };
 use std::{path::PathBuf, sync::Arc};
 use tracing_subscriber::EnvFilter;
@@ -69,8 +70,8 @@ impl RootHandler for Root {
     fn frame(&mut self, info: FrameInfo) {
         self.turntable.update(info);
     }
-    fn save_state(&mut self) -> ClientState {
-        ClientState::from_root(self.turntable.root())
+    fn save_state(&mut self) -> MethodResult<ClientState> {
+        Ok(ClientState::default())
     }
 }
 
@@ -82,9 +83,12 @@ async fn main() -> Result<()> {
         .init();
     let args = Args::parse();
     let (client, event_loop) = Client::connect_with_async_loop().await?;
-    client.set_base_prefixes(&[directory_relative_path!("res")]);
+    client.set_base_prefixes(&[directory_relative_path!("res")])?;
 
-    let _wrapped_root = client.wrap_root(Root::new(client.clone(), args, 0.1).await?)?;
+    let _wrapped_root = client
+        .get_root()
+        .alias()
+        .wrap(Root::new(client.clone(), args, 0.1).await?)?;
 
     tokio::select! {
         _ = tokio::signal::ctrl_c() => Ok(()),
