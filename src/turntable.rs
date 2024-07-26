@@ -26,7 +26,6 @@ pub struct TurntableSettings {
 impl TurntableSettings {
     fn grip_lines(&self) -> Vec<Line> {
         (0..self.line_count)
-            .into_iter()
             .map(|c| (c as f32) / (self.line_count as f32) * TAU) // get angle from count
             .map(|a| a.sin_cos()) // get x+y from angle (unit circle)
             .map(|(x, y)| {
@@ -203,7 +202,7 @@ impl Turntable {
                 let slope_condition = interact_points(input).into_iter().any(|p| {
                     let h = p.y + self.settings.height;
                     let r = p.x.hypot(p.z) - self.settings.inner_radius;
-                    h < r
+                    h < r.max(0.0)
                 });
                 let distance_condition = input.distance < 0.0;
                 slope_condition && distance_condition

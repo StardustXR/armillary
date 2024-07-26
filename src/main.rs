@@ -71,7 +71,7 @@ impl RootHandler for Root {
         self.turntable.update(info);
     }
     fn save_state(&mut self) -> MethodResult<ClientState> {
-        Ok(ClientState::default())
+        ClientState::from_root(self.turntable.root())
     }
 }
 
