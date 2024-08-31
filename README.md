@@ -3,3 +3,8 @@ A model viewer for Stardust XR which works great for hand tracking, pointers, an
 
 ## To Use
 just run the compiled binary and pass in the path to the gltf file you want to load as first argument
+
+e.g.
+```sh
+cargo run -- test_model.glb
+```
