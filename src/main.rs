@@ -83,7 +83,6 @@ async fn main() -> Result<()> {
         .init();
     let args = Args::parse();
     let (client, event_loop) = Client::connect_with_async_loop().await?;
-    client.set_base_prefixes(&[directory_relative_path!("res")])?;
 
     let _wrapped_root = client
         .get_root()
