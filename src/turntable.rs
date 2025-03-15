@@ -1,12 +1,17 @@
+use asteroids::{
+    custom::{derive_setters::Setters, ElementTrait, FnWrapper, Transformable},
+    ValidState,
+};
 use glam::{Quat, Vec3};
 use map_range::MapRange;
 use stardust_xr_fusion::{
+    core::schemas::zbus::Connection,
     drawable::{Line, LinePoint, Lines, LinesAspect},
-    fields::{CylinderShape, Field, Shape},
+    fields::{CylinderShape, Field, FieldAspect, Shape},
     input::{InputData, InputDataType, InputHandler},
     node::NodeError,
     root::FrameInfo,
-    spatial::{Spatial, SpatialAspect, SpatialRefAspect, Transform},
+    spatial::{Spatial, SpatialAspect, SpatialRef, SpatialRefAspect, Transform},
     values::color::rgba_linear,
 };
 use stardust_xr_molecules::input_action::{InputQueue, InputQueueable, SimpleAction, SingleAction};
@@ -15,15 +20,93 @@ use std::f32::{
     INFINITY,
 };
 
-#[derive(Debug, Clone, Copy)]
-pub struct TurntableSettings {
-    pub line_count: u32,
-    pub line_thickness: f32,
-    pub height: f32,
-    pub inner_radius: f32,
-    pub scroll_multiplier: f32,
+#[derive(Setters)]
+pub struct Turntable<State: ValidState> {
+    #[setters(skip)]
+    transform: Transform,
+    #[setters(skip)]
+    rotation: f32,
+    line_count: u32,
+    line_thickness: f32,
+    height: f32,
+    inner_radius: f32,
+    scroll_multiplier: f32,
+    #[setters(skip)]
+    on_rotate: FnWrapper<dyn Fn(&mut State, f32) + Send + Sync + 'static>,
 }
-impl TurntableSettings {
+impl<State: ValidState> std::fmt::Debug for Turntable<State> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Turntable")
+            .field("transform", &self.transform)
+            .field("rotation", &self.rotation)
+            .field("line_count", &self.line_count)
+            .field("line_thickness", &self.line_thickness)
+            .field("height", &self.height)
+            .field("inner_radius", &self.inner_radius)
+            .field("scroll_multiplier", &self.scroll_multiplier)
+            .finish()
+    }
+}
+impl<State: ValidState> Transformable for Turntable<State> {
+    fn transform(&self) -> &Transform {
+        &self.transform
+    }
+    fn transform_mut(&mut self) -> &mut Transform {
+        &mut self.transform
+    }
+}
+impl<State: ValidState> ElementTrait<State> for Turntable<State> {
+    type Inner = TurntableInner;
+    type Resource = ();
+    type Error = stardust_xr_fusion::node::NodeError;
+
+    fn create_inner(
+        &self,
+        parent_space: &SpatialRef,
+        _dbus_connection: &Connection,
+        _resource: &mut Self::Resource,
+    ) -> Result<Self::Inner, Self::Error> {
+        TurntableInner::create(parent_space, self.transform, self)
+    }
+
+    fn update(
+        &self,
+        old_decl: &Self,
+        _state: &mut State,
+        inner: &mut Self::Inner,
+        _resource: &mut Self::Resource,
+    ) {
+        self.apply_transform(old_decl, &inner.root);
+        if self.inner_radius != old_decl.inner_radius || self.height != old_decl.height {
+            inner.set_size(self.inner_radius, self.height);
+        }
+    }
+
+    fn frame(&self, info: &FrameInfo, state: &mut State, inner: &mut Self::Inner) {
+        inner.update(info.clone(), self, state);
+    }
+
+    fn spatial_aspect(&self, inner: &Self::Inner) -> SpatialRef {
+        inner.content_parent.clone().as_spatial_ref()
+    }
+}
+
+impl<State: ValidState> Turntable<State> {
+    pub fn new<F: Fn(&mut State, f32) + Send + Sync + 'static>(
+        rotation: f32,
+        on_rotate: F,
+    ) -> Self {
+        Turntable {
+            transform: Transform::identity(),
+            rotation,
+            line_count: 106,
+            line_thickness: 0.002,
+            height: 0.03,
+            inner_radius: 0.5,
+            scroll_multiplier: 10.0_f32.to_radians(),
+            on_rotate: FnWrapper(Box::new(on_rotate)),
+        }
+    }
     fn grip_lines(&self) -> Vec<Line> {
         (0..self.line_count)
             .map(|c| (c as f32) / (self.line_count as f32) * TAU) // get angle from count
@@ -100,26 +183,24 @@ fn interact_angle(input: &InputData) -> Option<f32> {
     Some(p.z.atan2(p.x))
 }
 
-pub struct Turntable {
+pub struct TurntableInner {
     root: Spatial,
     content_parent: Spatial,
-    settings: TurntableSettings,
     grip_lines: Vec<Line>,
     grip: Lines,
-    _field: Field,
+    field: Field,
 
     input: InputQueue,
     pointer_hover_action: SimpleAction,
     touch_action: SingleAction,
     angular_momentum: f32,
     prev_angle: Option<f32>,
-    rotation: f32,
 }
-impl Turntable {
-    pub fn create(
+impl TurntableInner {
+    pub fn create<State: ValidState>(
         parent: &impl SpatialRefAspect,
         transform: Transform,
-        settings: TurntableSettings,
+        settings: &Turntable<State>,
     ) -> Result<Self, NodeError> {
         let root = Spatial::create(parent, transform, false)?;
         let content_parent = Spatial::create(&root, Transform::none(), false)?;
@@ -142,15 +223,13 @@ impl Turntable {
         Ok(Self {
             root,
             content_parent,
-            settings,
             grip_lines,
             grip,
-            _field: field,
+            field,
             input,
             pointer_hover_action: Default::default(),
             touch_action: Default::default(),
             prev_angle: None,
-            rotation: 0.0,
             angular_momentum: 0.0,
         })
     }
@@ -160,6 +239,19 @@ impl Turntable {
     }
     pub fn content_parent(&self) -> &Spatial {
         &self.content_parent
+    }
+
+    pub fn set_size(&self, inner_radius: f32, height: f32) {
+        let _ = self
+            .field
+            .set_local_transform(Transform::from_translation_rotation(
+                [0.0, -height * 0.5, 0.0],
+                Quat::from_rotation_x(FRAC_PI_2),
+            ));
+        let _ = self.field.set_shape(Shape::Cylinder(CylinderShape {
+            length: height,
+            radius: inner_radius + height,
+        }));
     }
 
     #[inline]
@@ -177,41 +269,79 @@ impl Turntable {
             .reduce(|a, b| a + b)
             .unwrap_or_default()
     }
-    pub fn rotate(&mut self, angle: f32) {
-        self.rotation += angle;
+    pub fn rotate<State: ValidState>(
+        &mut self,
+        mut rotation: f32,
+        angle: f32,
+        state: &mut State,
+        on_rotate: &FnWrapper<dyn Fn(&mut State, f32) + Send + Sync + 'static>,
+    ) {
+        rotation += angle;
         let _ = self
             .content_parent
-            .set_local_transform(Transform::from_rotation(Quat::from_rotation_y(
-                self.rotation,
-            )));
+            .set_local_transform(Transform::from_rotation(Quat::from_rotation_y(rotation)));
+        (on_rotate.0)(state, rotation);
+    }
+    pub fn update<State: ValidState>(
+        &mut self,
+        info: FrameInfo,
+        settings: &Turntable<State>,
+        state: &mut State,
+    ) {
+        self.input.handle_events();
+        self.update_pointer_hover(&settings);
+        self.update_touch(&settings);
+        self.update_scroll_rotation(settings, state);
+        self.update_touch_rotation(&info, settings, state);
+        self.update_momentum_rotation(&info, settings, state);
+        self.update_grip_visuals(&settings);
     }
 
-    pub fn update(&mut self, info: FrameInfo) {
-        self.angular_momentum *= 0.98;
-
+    fn update_pointer_hover<State: ValidState>(&mut self, _settings: &Turntable<State>) {
         self.pointer_hover_action
             .update(&self.input, &|input| match &input.input {
                 InputDataType::Pointer(_) => input.distance < 0.0,
                 _ => false,
             });
+    }
+
+    fn update_touch<State: ValidState>(&mut self, settings: &Turntable<State>) {
         self.touch_action.update(
             false,
             &self.input,
             |_| true,
             |input| {
                 let slope_condition = interact_points(input).into_iter().any(|p| {
-                    let h = p.y + self.settings.height;
-                    let r = p.x.hypot(p.z) - self.settings.inner_radius;
+                    let h = p.y + settings.height;
+                    let r = p.x.hypot(p.z) - settings.inner_radius;
                     h < r.max(0.0)
                 });
                 let distance_condition = input.distance < 0.0;
                 slope_condition && distance_condition
             },
         );
+    }
 
-        self.rotate(-self.scroll() * self.settings.scroll_multiplier);
+    fn update_scroll_rotation<State: ValidState>(
+        &mut self,
+        settings: &Turntable<State>,
+        state: &mut State,
+    ) {
+        let scroll_rotation = -self.scroll() * settings.scroll_multiplier;
+        self.rotate(
+            scroll_rotation,
+            settings.rotation,
+            state,
+            &settings.on_rotate,
+        );
+    }
 
-        // if touching
+    fn update_touch_rotation<State: ValidState>(
+        &mut self,
+        info: &FrameInfo,
+        settings: &Turntable<State>,
+        state: &mut State,
+    ) {
         if let Some(angle) = self
             .touch_action
             .actor()
@@ -222,23 +352,38 @@ impl Turntable {
             if let Some(prev_angle) = self.prev_angle {
                 let delta = prev_angle - angle;
                 self.angular_momentum = delta * info.delta;
-                self.rotate(delta);
+                self.rotate(delta, settings.rotation, state, &settings.on_rotate);
             }
             self.prev_angle.replace(angle);
         }
         if self.touch_action.actor_stopped() {
             self.prev_angle.take();
         }
-        if !self.touch_action.actor_acting() {
-            self.rotate(self.angular_momentum / info.delta);
-        }
+    }
 
-        // update grip color
+    fn update_momentum_rotation<State: ValidState>(
+        &mut self,
+        info: &FrameInfo,
+        settings: &Turntable<State>,
+        state: &mut State,
+    ) {
+        self.angular_momentum *= 0.98;
+        if !self.touch_action.actor_acting() && self.angular_momentum > 0.0 {
+            self.rotate(
+                self.angular_momentum / info.delta,
+                settings.rotation,
+                state,
+                &settings.on_rotate,
+            );
+        }
+    }
+
+    fn update_grip_visuals<State: ValidState>(&mut self, settings: &Turntable<State>) {
         for line in &mut self.grip_lines {
             for point in &mut line.points {
                 let lerp = interact_proximity(
                     &self.input,
-                    Quat::from_rotation_y(self.rotation) * Vec3::from(point.point),
+                    Quat::from_rotation_y(settings.rotation) * Vec3::from(point.point),
                 )
                 .map_range(0.05..0.0, 1.0..0.0)
                 .clamp(0.0, 1.0);

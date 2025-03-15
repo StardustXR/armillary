@@ -1,96 +1,122 @@
+pub mod bounds;
+pub mod file_watcher;
 pub mod turntable;
 
-use clap::Parser;
-use color_eyre::eyre::{bail, Result};
-use glam::{vec3, Vec3};
-use manifest_dir_macros::directory_relative_path;
-use stardust_xr_fusion::{
-    client::Client,
-    core::values::ResourceID,
-    drawable::Model,
-    node::{MethodResult, NodeError, NodeType},
-    root::{ClientState, FrameInfo, RootAspect, RootHandler},
-    spatial::{SpatialAspect, SpatialRefAspect, Transform},
+use asteroids::{
+    client::ClientState,
+    custom::{ElementTrait, Transformable},
+    elements::{Model, Text},
+    util::Migrate,
 };
-use std::{path::PathBuf, sync::Arc};
+use bounds::Bounds;
+use clap::Parser;
+use file_watcher::FileWatcher;
+use serde::{Deserialize, Serialize};
+use stardust_xr_fusion::drawable::XAlign;
+use std::{path::PathBuf, sync::OnceLock};
 use tracing_subscriber::EnvFilter;
-use turntable::{Turntable, TurntableSettings};
+use turntable::Turntable;
+use uuid::Uuid;
 
 #[derive(Parser)]
 pub struct Args {
     file_path: PathBuf,
 }
 
-struct Root {
-    turntable: Turntable,
-    _model: Model,
+#[derive(Debug)]
+pub struct ModelInfo {
+    uuid: Uuid,
+    height_offset: f32,
+    scale: f32,
 }
-impl Root {
-    async fn new(client: Arc<Client>, args: Args, radius: f32) -> Result<Self> {
-        let model = Model::create(
-            client.get_root(),
-            Transform::from_translation([0.0; 3]),
-            &ResourceID::new_direct(
-                args.file_path
-                    .canonicalize()
-                    .map_err(|_| NodeError::InvalidPath)?,
-            )?,
-        )?;
-        let model_bounds = model.get_relative_bounding_box(client.get_root()).await?;
-        dbg!(&model_bounds);
-        let max_model_dim = model_bounds
-            .size
-            .x
-            .max(model_bounds.size.y.max(model_bounds.size.z));
-        let mut scale = radius * 2.0 / max_model_dim;
-        scale = scale.min(1.0);
-        let turntable = Turntable::create(
-            client.get_root(),
-            Transform::identity(),
-            TurntableSettings {
-                line_count: 106,
-                line_thickness: 0.002,
-                height: 0.03,
-                inner_radius: radius,
-                scroll_multiplier: 10.0_f32.to_radians(),
-            },
-        )?;
-        model.set_spatial_parent(turntable.content_parent())?;
-        let mut position = vec3(0.0, model_bounds.size.y * scale / 2.0, 0.0);
-        position -= Vec3::from(model_bounds.center) * scale * 0.5;
-        model.set_local_transform(Transform::from_translation_scale(position, [scale; 3]))?;
-        turntable.root().set_zoneable(true)?;
-        Ok(Root {
-            turntable,
-            _model: model,
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct State {
+    model_path: PathBuf,
+    turntable_angle: f32,
+    radius: f32,
+
+    #[serde(skip)]
+    model_info: OnceLock<ModelInfo>,
+}
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            model_path: PathBuf::new(),
+            turntable_angle: 0.0,
+            radius: 0.1,
+            model_info: OnceLock::new(),
+        }
+    }
+}
+impl Migrate for State {
+    type Old = Self;
+}
+impl ClientState for State {
+    const QUALIFIER: &'static str = "org";
+    const ORGANIZATION: &'static str = "stardustxr";
+    const NAME: &'static str = "armillary";
+
+    fn initial_state_update(&mut self) {
+        let args = Args::parse();
+        self.model_path = args.file_path.canonicalize().unwrap();
+    }
+    fn reify(&self) -> asteroids::Element<Self> {
+        let model_info = self.model_info.get_or_init(|| {
+            let uuid = Uuid::new_v4();
+            println!("creating new model info with uuid {uuid}");
+            ModelInfo {
+                uuid,
+                height_offset: 0.0,
+                scale: 0.0,
+            }
+        });
+
+        let model = match Model::direct(&self.model_path) {
+            Ok(model) => model
+                .pos([0.0, model_info.height_offset, 0.0])
+                .build()
+                .identify(&model_info.uuid),
+            Err(e) => Text::default()
+                .text(format!("Model Error:\n{}", e))
+                .text_align_x(XAlign::Center)
+                .character_height(0.025)
+                .pos([0.0, 0.075, 0.0])
+                .build(),
+        };
+
+        let bounds = Bounds::new(|state: &mut State, bounds| {
+            let Some(model_info) = state.model_info.get_mut() else {
+                return;
+            };
+
+            model_info.height_offset = bounds.size.y / 2.0;
+
+            let min_size = bounds.size.x.min(bounds.size.z);
+            model_info.scale = state.radius * 2.0 / min_size;
         })
-    }
-}
-impl RootHandler for Root {
-    fn frame(&mut self, info: FrameInfo) {
-        self.turntable.update(info);
-    }
-    fn save_state(&mut self) -> MethodResult<ClientState> {
-        ClientState::from_root(self.turntable.root())
+        .scl([model_info.scale; 3])
+        .with_children([model]);
+
+        let file_watcher = FileWatcher::new(self.model_path.clone(), |state: &mut State| {
+            println!("file is modified");
+            state.model_info.take();
+        })
+        .build();
+        Turntable::new(self.turntable_angle, |state: &mut State, angle| {
+            state.turntable_angle = angle;
+        })
+        .inner_radius(self.radius)
+        .with_children([bounds, file_watcher])
     }
 }
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() -> Result<()> {
+async fn main() {
     tracing_subscriber::fmt()
         .compact()
         .with_env_filter(EnvFilter::from_env("LOG_LEVEL"))
         .init();
-    let args = Args::parse();
-    let (client, event_loop) = Client::connect_with_async_loop().await?;
-
-    let _wrapped_root = client
-        .get_root()
-        .alias()
-        .wrap(Root::new(client.clone(), args, 0.1).await?)?;
-
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => Ok(()),
-        _ = event_loop => bail!("Server crashed"),
-    }
+    // let args = Args::parse();
+    asteroids::client::run::<State>(&[]).await
 }

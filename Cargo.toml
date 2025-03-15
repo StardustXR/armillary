@@ -17,6 +17,10 @@ color-eyre = "0.6.2"
 colorgrad = "0.6.2"
 map-range = "0.1.2"
 clap = { version = "4.4.8", features = ["derive"] }
+serde = { version = "1.0.219", features = ["serde_derive"] }
+uuid = { version = "1.15.1", features = ["rng", "v8", "v7", "v4"] }
+inotify = "0.11.0"
+futures-util = "0.3.31"
 
 [dependencies.stardust-xr-fusion]
 git = "https://github.com/StardustXR/core.git"
@@ -24,4 +28,8 @@ branch = "dev"
 
 [dependencies.stardust-xr-molecules]
 git = "https://github.com/StardustXR/molecules.git"
+branch = "dev"
+
+[dependencies.asteroids]
+git = "https://github.com/StardustXR/asteroids.git"
 branch = "dev"
