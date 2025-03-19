@@ -18,9 +18,10 @@ pub struct BoundsInner {
     bounds_rx: mpsc::Receiver<BoundingBox>,
 }
 
+type OnBoundsChange<State> = Box<dyn Fn(&mut State, BoundingBox) + Send + Sync>;
 pub struct Bounds<State: ValidState> {
     transform: Transform,
-    on_bounds_change: Box<dyn Fn(&mut State, BoundingBox) + Send + Sync>,
+    on_bounds_change: OnBoundsChange<State>,
 }
 impl<State: ValidState> std::fmt::Debug for Bounds<State> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

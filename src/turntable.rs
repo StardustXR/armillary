@@ -15,11 +15,9 @@ use stardust_xr_fusion::{
     values::color::rgba_linear,
 };
 use stardust_xr_molecules::input_action::{InputQueue, InputQueueable, SimpleAction, SingleAction};
-use std::f32::{
-    consts::{FRAC_PI_2, TAU},
-    INFINITY,
-};
+use std::f32::consts::{FRAC_PI_2, TAU};
 
+type OnRotate<State> = FnWrapper<dyn Fn(&mut State, f32) + Send + Sync>;
 #[derive(Setters)]
 pub struct Turntable<State: ValidState> {
     #[setters(skip)]
@@ -32,7 +30,7 @@ pub struct Turntable<State: ValidState> {
     inner_radius: f32,
     scroll_multiplier: f32,
     #[setters(skip)]
-    on_rotate: FnWrapper<dyn Fn(&mut State, f32) + Send + Sync + 'static>,
+    on_rotate: OnRotate<State>,
 }
 impl<State: ValidState> std::fmt::Debug for Turntable<State> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -176,7 +174,7 @@ fn interact_proximity(input: &InputQueue, point: Vec3) -> f32 {
         })
         .map(|p| Vec3::from(p).distance(point))
         .reduce(|a, b| a.min(b))
-        .unwrap_or(INFINITY)
+        .unwrap_or(f32::INFINITY)
 }
 fn interact_angle(input: &InputData) -> Option<f32> {
     let p = interact_point(input)?;
@@ -274,7 +272,7 @@ impl TurntableInner {
         mut rotation: f32,
         angle: f32,
         state: &mut State,
-        on_rotate: &FnWrapper<dyn Fn(&mut State, f32) + Send + Sync + 'static>,
+        on_rotate: &OnRotate<State>,
     ) {
         rotation += angle;
         let _ = self
@@ -289,12 +287,12 @@ impl TurntableInner {
         state: &mut State,
     ) {
         self.input.handle_events();
-        self.update_pointer_hover(&settings);
-        self.update_touch(&settings);
+        self.update_pointer_hover(settings);
+        self.update_touch(settings);
         self.update_scroll_rotation(settings, state);
         self.update_touch_rotation(&info, settings, state);
         self.update_momentum_rotation(&info, settings, state);
-        self.update_grip_visuals(&settings);
+        self.update_grip_visuals(settings);
     }
 
     fn update_pointer_hover<State: ValidState>(&mut self, _settings: &Turntable<State>) {
