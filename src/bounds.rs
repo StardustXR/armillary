@@ -49,8 +49,19 @@ impl<State: ValidState> ElementTrait<State> for Bounds<State> {
         _resource: &mut Self::Resource,
     ) -> Result<Self::Inner, Self::Error> {
         let (bounds_tx, bounds_rx) = mpsc::channel(1);
+        let spatial = Spatial::create(parent_space, self.transform, false)?;
+
+        tokio::spawn({
+            let spatial = spatial.clone();
+            let tx = bounds_tx.clone();
+            async move {
+                if let Ok(bounds) = spatial.get_local_bounding_box().await {
+                    let _ = tx.send(bounds).await;
+                }
+            }
+        });
         Ok(BoundsInner {
-            spatial: Spatial::create(parent_space, self.transform, false)?,
+            spatial,
             previous_bounds: None,
             bounds_tx,
             bounds_rx,
