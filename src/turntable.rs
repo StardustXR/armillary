@@ -204,10 +204,7 @@ impl TurntableInner {
         let content_parent = Spatial::create(&root, Transform::none(), false)?;
         let field = Field::create(
             &root,
-            Transform::from_translation_rotation(
-                [0.0, -settings.height * 0.5, 0.0],
-                Quat::from_rotation_x(FRAC_PI_2),
-            ),
+            Transform::from_translation([0.0, -settings.height * 0.5, 0.0]),
             Shape::Cylinder(CylinderShape {
                 length: settings.height,
                 radius: settings.inner_radius + settings.height,

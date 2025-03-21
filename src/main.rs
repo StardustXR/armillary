@@ -1,5 +1,6 @@
 pub mod bounds;
 pub mod file_watcher;
+pub mod grab_ring;
 pub mod turntable;
 
 use asteroids::{
@@ -11,6 +12,8 @@ use asteroids::{
 use bounds::Bounds;
 use clap::Parser;
 use file_watcher::FileWatcher;
+use grab_ring::GrabRing;
+use mint::Vector3;
 use serde::{Deserialize, Serialize};
 use stardust_xr_fusion::drawable::XAlign;
 use std::{path::PathBuf, sync::OnceLock};
@@ -32,6 +35,7 @@ pub struct ModelInfo {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct State {
+    pos: Vector3<f32>,
     model_path: PathBuf,
     turntable_angle: f32,
     radius: f32,
@@ -42,6 +46,7 @@ pub struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
+            pos: [0.0; 3].into(),
             model_path: PathBuf::new(),
             turntable_angle: 0.0,
             radius: 0.1,
@@ -103,11 +108,18 @@ impl ClientState for State {
             state.model_info.take();
         })
         .build();
-        Turntable::new(self.turntable_angle, |state: &mut State, angle| {
+        let turntable = Turntable::new(self.turntable_angle, |state: &mut State, angle| {
             state.turntable_angle = angle;
         })
+        .pos([0.0, 0.035, 0.0])
         .inner_radius(self.radius)
-        .with_children([bounds, file_watcher])
+        .with_children([bounds, file_watcher]);
+
+        GrabRing::new(self.pos, |state: &mut State, pos| {
+            state.pos = pos;
+        })
+        .radius(self.radius + 0.04)
+        .with_children([turntable])
     }
 }
 
