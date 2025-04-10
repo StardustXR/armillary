@@ -1,24 +1,14 @@
-pub mod bounds;
-pub mod file_watcher;
-pub mod grab_ring;
-pub mod turntable;
-
 use asteroids::{
     client::ClientState,
-    custom::{ElementTrait, Transformable},
-    elements::{Model, Text},
-    util::Migrate,
+    elements::{Bounds, FileWatcher, GrabRing, Model, Text, Turntable},
+    ElementTrait, Migrate, Transformable,
 };
-use bounds::Bounds;
 use clap::Parser;
-use file_watcher::FileWatcher;
-use grab_ring::GrabRing;
 use mint::Vector3;
 use serde::{Deserialize, Serialize};
 use stardust_xr_fusion::drawable::XAlign;
 use std::{path::PathBuf, sync::OnceLock};
 use tracing_subscriber::EnvFilter;
-use turntable::Turntable;
 use uuid::Uuid;
 
 #[derive(Parser)]
