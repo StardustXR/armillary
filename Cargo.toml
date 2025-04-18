@@ -31,6 +31,5 @@ git = "https://github.com/StardustXR/molecules.git"
 branch = "dev"
 
 [dependencies.asteroids]
-# git = "https://github.com/StardustXR/asteroids.git"
-# branch = "dev"
-path = "../asteroids"
+git = "https://github.com/StardustXR/asteroids.git"
+branch = "dev"
