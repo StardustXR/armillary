@@ -73,7 +73,7 @@ impl ClientState for State {
                 .build()
                 .identify(&model_info.uuid),
             Err(e) => Text::default()
-                .text(format!("Model Error:\n{}", e))
+                .text(format!("Model Error:\n{e}"))
                 .text_align_x(XAlign::Center)
                 .character_height(0.025)
                 .pos([0.0, 0.075, 0.0])
