@@ -89,8 +89,7 @@ impl Reify for State {
         GrabRing::new(self.pos, |state: &mut State, pos| {
             state.pos = pos;
         })
-        .radius(self.radius)
-        .thickness(0.02)
+        .radius(self.radius + 0.04)
         .build()
         .child(
             Turntable::new(self.turntable_angle, |state: &mut State, angle| {
