@@ -64,9 +64,7 @@ impl Reify for State {
         let mut model = None;
         let mut model_error = None;
         match Model::direct(&self.model_path) {
-            Ok(model_elem) => {
-                model = Some(model_elem.pos([0.0, model_info.height_offset, 0.0]).build())
-            }
+            Ok(model_elem) => model = Some(model_elem.build()),
             Err(e) => {
                 model_error = Some(
                     Text::new(format!("Model Error:\n{e}"))
@@ -102,6 +100,7 @@ impl Reify for State {
                     model_info.scale = state.radius * 2.0 / max_size;
                 })
                 .scl([model_info.scale; 3])
+                .pos([0.0, model_info.height_offset, 0.0])
                 .build()
                 .maybe_child(model)
                 .maybe_child(model_error),
