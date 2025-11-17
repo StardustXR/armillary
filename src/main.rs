@@ -2,7 +2,7 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use stardust_xr_asteroids::{
     client::ClientState,
-    elements::{Bounds, FileWatcher, GrabRing, Model, Text, Turntable},
+    elements::{Bounds, FileWatcher, GrabRing, Model, Spatial, Text, Turntable},
     CustomElement as _, Migrate, Reify, Transformable,
 };
 use stardust_xr_fusion::{drawable::XAlign, values::Vector3};
@@ -89,21 +89,22 @@ impl Reify for State {
             .inner_radius(self.radius)
             .build()
             .child(
-                Bounds::new(|state: &mut State, bounds| {
-                    let Some(model_info) = state.model_info.get_mut() else {
-                        return;
-                    };
+                Spatial::default().scl([model_info.scale; 3]).build().child(
+                    Bounds::new(|state: &mut State, bounds| {
+                        let Some(model_info) = state.model_info.get_mut() else {
+                            return;
+                        };
 
-                    model_info.height_offset = (bounds.size.y / 2.0) - bounds.center.y;
+                        model_info.height_offset = (bounds.size.y / 2.0) - bounds.center.y;
 
-                    let max_size = bounds.size.x.max(bounds.size.z);
-                    model_info.scale = state.radius * 2.0 / max_size;
-                })
-                .scl([model_info.scale; 3])
-                .pos([0.0, model_info.height_offset, 0.0])
-                .build()
-                .maybe_child(model)
-                .maybe_child(model_error),
+                        let max_size = bounds.size.x.max(bounds.size.z);
+                        model_info.scale = state.radius * 2.0 / max_size;
+                    })
+                    .pos([0.0, model_info.height_offset, 0.0])
+                    .build()
+                    .maybe_child(model)
+                    .maybe_child(model_error),
+                ),
             )
             .child(
                 FileWatcher::new(self.model_path.clone(), |state: &mut State| {
