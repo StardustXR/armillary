@@ -97,6 +97,7 @@ impl Reify for State {
                 state.turntable_angle = angle;
             })
             .pos([0.0, 0.035, 0.0])
+            .inner_radius(self.radius)
             .build(),
         )
         .child(
