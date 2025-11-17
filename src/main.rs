@@ -97,30 +97,30 @@ impl Reify for State {
             })
             .pos([0.0, 0.035, 0.0])
             .inner_radius(self.radius)
-            .build(),
-        )
-        .child(
-            Bounds::new(|state: &mut State, bounds| {
-                let Some(model_info) = state.model_info.get_mut() else {
-                    return;
-                };
-
-                model_info.height_offset = bounds.size.y / 2.0;
-
-                let min_size = bounds.size.x.min(bounds.size.z);
-                model_info.scale = state.radius * 2.0 / min_size;
-            })
-            .scl([model_info.scale; 3])
             .build()
-            .maybe_child(model)
-            .maybe_child(model_error),
-        )
-        .child(
-            FileWatcher::new(self.model_path.clone(), |state: &mut State| {
-                println!("file is modified");
-                state.model_info.take();
-            })
-            .build(),
+            .child(
+                Bounds::new(|state: &mut State, bounds| {
+                    let Some(model_info) = state.model_info.get_mut() else {
+                        return;
+                    };
+
+                    model_info.height_offset = bounds.size.y / 2.0;
+
+                    let min_size = bounds.size.x.min(bounds.size.z);
+                    model_info.scale = state.radius * 2.0 / min_size;
+                })
+                .scl([model_info.scale; 3])
+                .build()
+                .maybe_child(model)
+                .maybe_child(model_error)
+            )
+            .child(
+                FileWatcher::new(self.model_path.clone(), |state: &mut State| {
+                    println!("file is modified");
+                    state.model_info.take();
+                })
+                .build()
+            )
         )
     }
 }
