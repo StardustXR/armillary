@@ -1,15 +1,13 @@
 use clap::Parser;
-use mint::Vector3;
 use serde::{Deserialize, Serialize};
 use stardust_xr_asteroids::{
     client::ClientState,
     elements::{Bounds, FileWatcher, GrabRing, Model, Text, Turntable},
-    CustomElement as _, Identifiable, Migrate, Reify, Transformable,
+    CustomElement as _, Migrate, Reify, Transformable,
 };
-use stardust_xr_fusion::drawable::XAlign;
+use stardust_xr_fusion::{drawable::XAlign, values::Vector3};
 use std::{path::PathBuf, sync::OnceLock};
 use tracing_subscriber::EnvFilter;
-use uuid::Uuid;
 
 #[derive(Parser)]
 pub struct Args {
@@ -18,7 +16,6 @@ pub struct Args {
 
 #[derive(Debug)]
 pub struct ModelInfo {
-    uuid: Uuid,
     height_offset: f32,
     scale: f32,
 }
@@ -56,11 +53,10 @@ impl ClientState for State {
 }
 impl Reify for State {
     fn reify(&self) -> impl stardust_xr_asteroids::Element<Self> {
+        let no_model_info = self.model_info.get().is_none();
         let model_info = self.model_info.get_or_init(|| {
-            let uuid = Uuid::new_v4();
-            println!("creating new model info with uuid {uuid}");
+            println!("creating new model info");
             ModelInfo {
-                uuid,
                 height_offset: 0.0,
                 scale: 0.0,
             }
@@ -69,12 +65,7 @@ impl Reify for State {
         let mut model_error = None;
         match Model::direct(&self.model_path) {
             Ok(model_elem) => {
-                model = Some(
-                    model_elem
-                        .pos([0.0, model_info.height_offset, 0.0])
-                        .build()
-                        .identify(&model_info.uuid),
-                )
+                model = Some(model_elem.pos([0.0, model_info.height_offset, 0.0]).build())
             }
             Err(e) => {
                 model_error = Some(
@@ -86,6 +77,7 @@ impl Reify for State {
                 )
             }
         };
+        model.take_if(|_| no_model_info);
         GrabRing::new(self.pos, |state: &mut State, pos| {
             state.pos = pos;
         })
@@ -104,23 +96,23 @@ impl Reify for State {
                         return;
                     };
 
-                    model_info.height_offset = bounds.size.y / 2.0;
+                    model_info.height_offset = (bounds.size.y / 2.0) - bounds.center.y;
 
-                    let min_size = bounds.size.x.min(bounds.size.z);
-                    model_info.scale = state.radius * 2.0 / min_size;
+                    let max_size = bounds.size.x.max(bounds.size.z);
+                    model_info.scale = state.radius * 2.0 / max_size;
                 })
                 .scl([model_info.scale; 3])
                 .build()
                 .maybe_child(model)
-                .maybe_child(model_error)
+                .maybe_child(model_error),
             )
             .child(
                 FileWatcher::new(self.model_path.clone(), |state: &mut State| {
                     println!("file is modified");
                     state.model_info.take();
                 })
-                .build()
-            )
+                .build(),
+            ),
         )
     }
 }
