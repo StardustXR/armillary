@@ -89,38 +89,38 @@ impl Reify for State {
         GrabRing::new(self.pos, |state: &mut State, pos| {
             state.pos = pos;
         })
-        .radius(self.radius)
-        .thickness(0.02)
+        .radius(self.radius + 0.04)
         .build()
         .child(
             Turntable::new(self.turntable_angle, |state: &mut State, angle| {
                 state.turntable_angle = angle;
             })
             .pos([0.0, 0.035, 0.0])
-            .build(),
-        )
-        .child(
-            Bounds::new(|state: &mut State, bounds| {
-                let Some(model_info) = state.model_info.get_mut() else {
-                    return;
-                };
-
-                model_info.height_offset = bounds.size.y / 2.0;
-
-                let min_size = bounds.size.x.min(bounds.size.z);
-                model_info.scale = state.radius * 2.0 / min_size;
-            })
-            .scl([model_info.scale; 3])
+            .inner_radius(self.radius)
             .build()
-            .maybe_child(model)
-            .maybe_child(model_error),
-        )
-        .child(
-            FileWatcher::new(self.model_path.clone(), |state: &mut State| {
-                println!("file is modified");
-                state.model_info.take();
-            })
-            .build(),
+            .child(
+                Bounds::new(|state: &mut State, bounds| {
+                    let Some(model_info) = state.model_info.get_mut() else {
+                        return;
+                    };
+
+                    model_info.height_offset = bounds.size.y / 2.0;
+
+                    let min_size = bounds.size.x.min(bounds.size.z);
+                    model_info.scale = state.radius * 2.0 / min_size;
+                })
+                .scl([model_info.scale; 3])
+                .build()
+                .maybe_child(model)
+                .maybe_child(model_error)
+            )
+            .child(
+                FileWatcher::new(self.model_path.clone(), |state: &mut State| {
+                    println!("file is modified");
+                    state.model_info.take();
+                })
+                .build()
+            )
         )
     }
 }
