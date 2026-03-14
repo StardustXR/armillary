@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use stardust_xr_asteroids::{
     client::ClientState,
     elements::{Bounds, FileWatcher, GrabRing, Model, Spatial, Text, Turntable},
-    CustomElement as _, Migrate, Reify, Transformable,
+    Context, CustomElement as _, Element, Migrate, Reify, Tasker, Transformable,
 };
 use stardust_xr_fusion::{drawable::XAlign, values::Vector3};
 use std::{path::PathBuf, sync::OnceLock};
@@ -52,7 +52,7 @@ impl ClientState for State {
     }
 }
 impl Reify for State {
-    fn reify(&self) -> impl stardust_xr_asteroids::Element<Self> {
+    fn reify(&self, _context: &Context, _tasks: impl Tasker<Self>) -> impl Element<Self> {
         let no_model_info = self.model_info.get().is_none();
         let model_info = self.model_info.get_or_init(|| {
             println!("creating new model info");
