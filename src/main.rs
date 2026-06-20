@@ -2,11 +2,11 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use stardust_xr_asteroids::{
     client::ClientState,
-    elements::{Bounds, FileWatcher, GrabRing, Model, Spatial, Text, Turntable},
+    elements::{BoundsTransformer, FileWatcher, GrabRing, Model, Text, Turntable},
     Context, CustomElement as _, Element, Migrate, Reify, Tasker, Transformable,
 };
-use stardust_xr_fusion::{drawable::XAlign, values::Vector3};
-use std::{path::PathBuf, sync::OnceLock};
+use stardust_xr_fusion::{drawable::XAlign, spatial::Transform, types::Vec3F};
+use std::path::PathBuf;
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser)]
@@ -14,21 +14,15 @@ pub struct Args {
     file_path: PathBuf,
 }
 
-#[derive(Debug)]
-pub struct ModelInfo {
-    height_offset: f32,
-    scale: f32,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct State {
-    pos: Vector3<f32>,
+    pos: Vec3F,
     model_path: PathBuf,
     turntable_angle: f32,
     radius: f32,
 
     #[serde(skip)]
-    model_info: OnceLock<ModelInfo>,
+    model_loaded: bool,
 }
 impl Default for State {
     fn default() -> Self {
@@ -37,7 +31,7 @@ impl Default for State {
             model_path: PathBuf::new(),
             turntable_angle: 0.0,
             radius: 0.1,
-            model_info: OnceLock::new(),
+            model_loaded: false,
         }
     }
 }
@@ -53,14 +47,6 @@ impl ClientState for State {
 }
 impl Reify for State {
     fn reify(&self, _context: &Context, _tasks: impl Tasker<Self>) -> impl Element<Self> {
-        let no_model_info = self.model_info.get().is_none();
-        let model_info = self.model_info.get_or_init(|| {
-            println!("creating new model info");
-            ModelInfo {
-                height_offset: 0.0,
-                scale: 0.0,
-            }
-        });
         let mut model = None;
         let mut model_error = None;
         match Model::direct(&self.model_path) {
@@ -75,7 +61,7 @@ impl Reify for State {
                 )
             }
         };
-        model.take_if(|_| no_model_info);
+        model.take_if(|_| !self.model_loaded);
         GrabRing::new(self.pos, |state: &mut State, pos| {
             state.pos = pos;
         })
@@ -89,27 +75,27 @@ impl Reify for State {
             .inner_radius(self.radius)
             .build()
             .child(
-                Spatial::default().scl([model_info.scale; 3]).build().child(
-                    Bounds::new(|state: &mut State, bounds| {
-                        let Some(model_info) = state.model_info.get_mut() else {
-                            return;
-                        };
+                BoundsTransformer::new({
+                    let radius = self.radius;
+                    move |bounds| {
+                        let height_offset = (bounds.extents.y / 2.0) - bounds.center.y;
 
-                        model_info.height_offset = (bounds.size.y / 2.0) - bounds.center.y;
+                        dbg!(bounds.extents);
 
-                        let max_size = bounds.size.x.max(bounds.size.z);
-                        model_info.scale = state.radius * 2.0 / max_size;
-                    })
-                    .pos([0.0, model_info.height_offset, 0.0])
-                    .build()
-                    .maybe_child(model)
-                    .maybe_child(model_error),
-                ),
+                        let max_size = bounds.extents.x.max(bounds.extents.z);
+                        let scale = radius * 2.0 / max_size;
+
+                        Transform::from_translation_scale([0.0, height_offset, 0.0], [scale; 3])
+                    }
+                })
+                .build()
+                .maybe_child(model)
+                .maybe_child(model_error),
             )
             .child(
                 FileWatcher::new(self.model_path.clone(), |state: &mut State| {
                     println!("file is modified");
-                    state.model_info.take();
+                    state.model_loaded = false;
                 })
                 .build(),
             ),
@@ -124,5 +110,7 @@ async fn main() {
         .with_env_filter(EnvFilter::from_env("LOG_LEVEL"))
         .init();
     // let args = Args::parse();
-    stardust_xr_asteroids::client::run::<State>(&[]).await
+    stardust_xr_asteroids::client::run::<State>(&[])
+        .await
+        .unwrap();
 }
