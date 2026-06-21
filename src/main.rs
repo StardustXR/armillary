@@ -6,7 +6,10 @@ use stardust_xr_asteroids::{
     Context, CustomElement as _, Element, Migrate, Reify, Tasker, Transformable,
 };
 use stardust_xr_fusion::{drawable::XAlign, spatial::Transform, types::Vec3F};
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::atomic::{AtomicBool, Ordering},
+};
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser)]
@@ -22,7 +25,7 @@ pub struct State {
     radius: f32,
 
     #[serde(skip)]
-    model_loaded: bool,
+    model_changed: AtomicBool,
 }
 impl Default for State {
     fn default() -> Self {
@@ -31,7 +34,7 @@ impl Default for State {
             model_path: PathBuf::new(),
             turntable_angle: 0.0,
             radius: 0.1,
-            model_loaded: false,
+            model_changed: AtomicBool::new(false),
         }
     }
 }
@@ -61,7 +64,8 @@ impl Reify for State {
                 )
             }
         };
-        model.take_if(|_| !self.model_loaded);
+        model.take_if(|_| self.model_changed.load(Ordering::Relaxed));
+        self.model_changed.store(false, Ordering::Relaxed);
         GrabRing::new(self.pos, |state: &mut State, pos| {
             state.pos = pos;
         })
@@ -78,9 +82,9 @@ impl Reify for State {
                 BoundsTransformer::new({
                     let radius = self.radius;
                     move |bounds| {
-                        let height_offset = (bounds.extents.y / 2.0) - bounds.center.y;
-
-                        dbg!(bounds.extents);
+                        // the .abs() is a work around for some models having inverted aabbs,
+                        // probably breaks other (correct) models tho
+                        let height_offset = (bounds.extents.y / 2.0) - bounds.center.y.abs();
 
                         let max_size = bounds.extents.x.max(bounds.extents.z);
                         let scale = radius * 2.0 / max_size;
@@ -95,7 +99,7 @@ impl Reify for State {
             .child(
                 FileWatcher::new(self.model_path.clone(), |state: &mut State| {
                     println!("file is modified");
-                    state.model_loaded = false;
+                    state.model_changed.store(true, Ordering::Relaxed);
                 })
                 .build(),
             ),
@@ -107,7 +111,7 @@ impl Reify for State {
 async fn main() {
     tracing_subscriber::fmt()
         .compact()
-        .with_env_filter(EnvFilter::from_env("LOG_LEVEL"))
+        .with_env_filter(EnvFilter::from_default_env())
         .init();
     // let args = Args::parse();
     stardust_xr_asteroids::client::run::<State>(&[])
