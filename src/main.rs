@@ -82,14 +82,19 @@ impl Reify for State {
                 BoundsTransformer::new({
                     let radius = self.radius;
                     move |bounds| {
-                        // the .abs() is a work around for some models having inverted aabbs,
-                        // probably breaks other (correct) models tho
-                        let height_offset = (bounds.extents.y / 2.0) - bounds.center.y.abs();
+                        let height_offset = (bounds.extents.y / 2.0) - bounds.center.y;
 
                         let max_size = bounds.extents.x.max(bounds.extents.z);
                         let scale = radius * 2.0 / max_size;
 
-                        Transform::from_translation_scale([0.0, height_offset, 0.0], [scale; 3])
+                        Transform::from_translation_scale(
+                            [
+                                bounds.center.x * -scale,
+                                height_offset * scale,
+                                bounds.center.y * -scale,
+                            ],
+                            [scale; 3],
+                        )
                     }
                 })
                 .build()
