@@ -113,13 +113,10 @@ name = "armillary"
 version = "0.50.0"
 dependencies = [
  "clap",
- "glam 0.24.2",
  "serde",
  "stardust-xr-asteroids",
  "stardust-xr-fusion",
- "stardust-xr-molecules",
  "tokio",
- "tracing",
  "tracing-subscriber",
 ]
 
@@ -271,20 +268,6 @@ name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
-
-[[package]]
-name = "binderbinder"
-version = "0.1.0"
-source = "git+https://github.com/technobaboo/binderbinder#bc67300889b264553697fd5d720a929c21571954"
-dependencies = [
- "bitflags",
- "dashmap",
- "rustix",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
 
 [[package]]
 name = "bitflags"
@@ -883,15 +866,6 @@ dependencies = [
 
 [[package]]
 name = "glam"
-version = "0.24.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5418c17512bdf42730f9032c74e1ae39afc408745ebb2acf72fbc4691c17945"
-dependencies = [
- "mint",
-]
-
-[[package]]
-name = "glam"
 version = "0.29.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8babf46d4c1c9d92deac9f7be466f76dfc4482b6452fc5024b5e8daf6ffeb3ee"
@@ -911,12 +885,12 @@ dependencies = [
 [[package]]
 name = "gluon"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#7910659982fbfa2d6e31f8741636f6af6b6836a8"
+source = "git+https://github.com/technobaboo/gluon.git?branch=refactor%2Fstrongipc#96dbeed55a456d140dde11c57b16e0625bd350ba"
 dependencies = [
- "binderbinder",
  "bitflags",
  "gluon-derive",
  "rustix",
+ "strong-ipc",
  "thiserror",
  "tokio",
 ]
@@ -924,7 +898,7 @@ dependencies = [
 [[package]]
 name = "gluon-codegen"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#7910659982fbfa2d6e31f8741636f6af6b6836a8"
+source = "git+https://github.com/technobaboo/gluon.git?branch=refactor%2Fstrongipc#96dbeed55a456d140dde11c57b16e0625bd350ba"
 dependencies = [
  "convert_case",
  "gluon",
@@ -938,7 +912,7 @@ dependencies = [
 [[package]]
 name = "gluon-derive"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#7910659982fbfa2d6e31f8741636f6af6b6836a8"
+source = "git+https://github.com/technobaboo/gluon.git?branch=refactor%2Fstrongipc#96dbeed55a456d140dde11c57b16e0625bd350ba"
 dependencies = [
  "quote",
  "syn",
@@ -947,7 +921,7 @@ dependencies = [
 [[package]]
 name = "gluon-parser"
 version = "0.1.0"
-source = "git+https://github.com/technobaboo/gluon#7910659982fbfa2d6e31f8741636f6af6b6836a8"
+source = "git+https://github.com/technobaboo/gluon.git?branch=refactor%2Fstrongipc#96dbeed55a456d140dde11c57b16e0625bd350ba"
 dependencies = [
  "ansi_term",
  "chumsky",
@@ -1371,19 +1345,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b3cff922bd51709b605d9ead9aa71031d81447142d828eb4a6eba76fe619f9b"
 
 [[package]]
-name = "pion-binder"
-version = "0.1.0"
-source = "git+https://github.com/technobaboo/pion#c11a613d26a493e0da8a1e82ea4c06c350a10a59"
-dependencies = [
- "async-trait",
- "binderbinder",
- "dashmap",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "piper"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1736,9 +1697,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.15.1"
+version = "1.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
+checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 
 [[package]]
 name = "socket2"
@@ -1766,7 +1727,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-asteroids"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/asteroids.git?branch=binder#97818eb8eb3eb4c7f2e47721a3c6e9c0435eb9b9"
+source = "git+https://github.com/StardustXR/asteroids.git?branch=refactor%2Fstrongipc#bb32ec42ee4843ec22e32606abbce8ed4ea453cf"
 dependencies = [
  "bumpalo",
  "derive-where",
@@ -1794,12 +1755,12 @@ dependencies = [
 [[package]]
 name = "stardust-xr-fusion"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core.git?branch=binder#bdf8ce105f5f1c0404ab375f93fd9c720a078ea7"
+source = "git+https://github.com/StardustXR/core.git?branch=refactor%2Fstrongipc#68ea50297537707e8367c7d23ac7524355bd82a5"
 dependencies = [
  "glam 0.30.9",
  "gluon",
  "parking_lot",
- "pion-binder",
+ "rustix",
  "stardust-xr-protocol",
  "thiserror",
  "tokio",
@@ -1810,7 +1771,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules"
 version = "0.51.0"
-source = "git+https://github.com/StardustXR/molecules.git?branch=binder#2205148b1e414258709b9541ecf109aebb77a223"
+source = "git+https://github.com/StardustXR/molecules.git?branch=refactor%2Fstrongipc#a4f1b8d46142130c555c662c12c7556da7862ee1"
 dependencies = [
  "futures",
  "glam 0.29.3",
@@ -1831,7 +1792,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-molecules-protocols"
 version = "0.1.0"
-source = "git+https://github.com/StardustXR/molecules.git?branch=binder#2205148b1e414258709b9541ecf109aebb77a223"
+source = "git+https://github.com/StardustXR/molecules.git?branch=refactor%2Fstrongipc#a4f1b8d46142130c555c662c12c7556da7862ee1"
 dependencies = [
  "gluon",
  "gluon-codegen",
@@ -1842,7 +1803,7 @@ dependencies = [
 [[package]]
 name = "stardust-xr-protocol"
 version = "0.51.1"
-source = "git+https://github.com/StardustXR/core.git?branch=binder#bdf8ce105f5f1c0404ab375f93fd9c720a078ea7"
+source = "git+https://github.com/StardustXR/core.git?branch=refactor%2Fstrongipc#68ea50297537707e8367c7d23ac7524355bd82a5"
 dependencies = [
  "fnv",
  "glam 0.29.3",
@@ -1865,6 +1826,18 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "strong-ipc"
+version = "0.1.0"
+source = "git+https://github.com/technobaboo/strong-ipc#4dddd5ede29f02352bc101645c55708862b1d9f4"
+dependencies = [
+ "dashmap",
+ "rustix",
+ "smallvec",
+ "tokio",
+ "tokio-util",
+]
 
 [[package]]
 name = "strsim"
@@ -1955,9 +1928,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.52.3"
+version = "1.53.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fc7f01b389ac15039e4dc9531aa973a135d7a4135281b12d7c1bc79fd57fffe"
+checksum = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed"
 dependencies = [
  "bytes",
  "libc",
@@ -1989,6 +1962,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32da49809aab5c3bc678af03902d4ccddea2a87d028d86392a4b1560c6906c70"
 dependencies = [
  "futures-core",
+ "pin-project-lite",
+ "tokio",
+]
+
+[[package]]
+name = "tokio-util"
+version = "0.7.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "494815d09bf52b5548659851081238f0ca39ff638363907596da739561c62c52"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "futures-sink",
+ "futures-util",
  "pin-project-lite",
  "tokio",
 ]
