@@ -10,11 +10,9 @@ clap = { version = "4.4.8", features = ["derive"] }
 serde = { version = "1.0.219", features = ["serde_derive"] }
 
 [dependencies.stardust-xr-fusion]
-version = "0.51.0"
-git = "https://github.com/StardustXR/core.git"
-branch = "refactor/strongipc"
+version = "0.52.0"
+# git = "https://github.com/StardustXR/core.git"
 
 [dependencies.stardust-xr-asteroids]
-version = "0.51.0"
-git = "https://github.com/StardustXR/asteroids.git"
-branch = "refactor/strongipc"
+version = "0.52.0"
+# git = "https://github.com/StardustXR/asteroids.git"

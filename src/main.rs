@@ -75,7 +75,7 @@ impl Reify for State {
             Turntable::new(self.turntable_angle, |state: &mut State, angle| {
                 state.turntable_angle = angle;
             })
-            .pos([0.0, 0.035 + 1.0, 0.0])
+            .pos([0.0, 0.035, 0.0])
             .inner_radius(self.radius)
             .build()
             .child(
@@ -91,7 +91,7 @@ impl Reify for State {
                             [
                                 bounds.center.x * -scale,
                                 height_offset * scale,
-                                bounds.center.y * -scale,
+                                bounds.center.z * -scale,
                             ],
                             [scale; 3],
                         )
