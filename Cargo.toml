@@ -1,6 +1,6 @@
 [package]
 name = "armillary"
-version = "0.50.0"
+version = "0.53.0-rc.1"
 edition = "2021"
 
 [dependencies]
@@ -10,9 +10,9 @@ clap = { version = "4.4.8", features = ["derive"] }
 serde = { version = "1.0.219", features = ["serde_derive"] }
 
 [dependencies.stardust-xr-fusion]
-version = "0.52.0"
+version = "0.53.0-rc.1"
 # git = "https://github.com/StardustXR/core.git"
 
 [dependencies.stardust-xr-asteroids]
-version = "0.52.0"
+version = "0.53.0-rc.1"
 # git = "https://github.com/StardustXR/asteroids.git"

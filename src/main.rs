@@ -49,7 +49,12 @@ impl ClientState for State {
     }
 }
 impl Reify for State {
-    fn reify(&self, _context: &Context, _tasks: impl Tasker<Self>) -> impl Element<Self> {
+    fn reify(
+        &self,
+        _context: &Context,
+        _tasks: impl Tasker<Self>,
+        _props: (),
+    ) -> impl Element<Self> {
         let mut model = None;
         let mut model_error = None;
         match Model::direct(&self.model_path) {
@@ -58,7 +63,7 @@ impl Reify for State {
                 model_error = Some(
                     Text::new(format!("Model Error:\n{e}"))
                         .align_x(XAlign::Center)
-                        .character_height(0.025)
+                        .character_height(0.025f32)
                         .pos([0.0, 0.075, 0.0])
                         .build(),
                 )
