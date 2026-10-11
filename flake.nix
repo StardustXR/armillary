@@ -14,14 +14,20 @@
       default = craneLib.buildPackage {
         src = ./.;
         cargoLock = ./Cargo.lock;
+
+		nativeBuildInputs = [ pkgs.just ];
+        postInstall = "just prefix=$out install-data";
+        STARDUST_RES_PREFIXES = "${builtins.placeholder "out"}/share";
       };
     });
+    formatter = forAllSystems (system: nixpkgsFor.${system}.nixfmt-tree);
 
     devShells = forAllSystems (system: let pkgs = nixpkgsFor.${system}; in {
       default = pkgs.mkShell {
         nativeBuildInputs = with pkgs; [
           cargo
           rustc
+		  just
         ];
       };
     });
