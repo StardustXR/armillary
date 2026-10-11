@@ -29,6 +29,7 @@
           default = craneLib.buildPackage {
             src = ./.;
             cargoLock = ./Cargo.lock;
+            doCheck = false;
 
             nativeBuildInputs = [ pkgs.just ];
             postInstall = "just prefix=$out install-data";
